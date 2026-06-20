@@ -37,12 +37,12 @@ fi
 info "Step 2/5: 코드 클론..."
 if [ -f ~/maimai/docker-compose.yml ]; then
     cd ~/maimai
-    git pull origin master 2>/dev/null && ok "코드 업데이트 완료" || ok "기존 코드 유지"
+    git pull origin master && ok "코드 업데이트 완료" || ok "기존 코드 유지"
 else
-    mkdir -p ~/maimai/data ~/maimai
+    rm -rf ~/maimai
+    git clone https://github.com/BitByte08/maimaiDISCORD.git ~/maimai
     cd ~/maimai
-    git clone https://github.com/BitByte08/maimaiDISCORD.git . 2>/dev/null || \
-        git clone git@github.com:BitByte08/maimaiDISCORD.git .
+    mkdir -p data
     ok "코드 클론 완료"
 fi
 
