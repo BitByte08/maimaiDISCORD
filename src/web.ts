@@ -19,7 +19,7 @@ var q=['/maimai-mobile/home/','/maimai-mobile/playerData/','/maimai-mobile/recor
 var r=await Promise.all(q.map(x));
 var h=r[0],p=r[1],rd=r[2],f=r[3],a='';
 try{
-  var m=h.match(/src="(https:\\\\/\\\\/[^"]*\\\\/Icon\\\\/[^"]+)"/);
+  var m=h.match(/src="(https:[^"]*Icon[^"]*)"/);
   if(m){var b=await fetch(m[1]).then(function(t){return t.blob()});
   a=await new Promise(function(d){var g=new FileReader();g.onload=function(){d(g.result)};g.readAsDataURL(b)})}
 }catch(e){}
