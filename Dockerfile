@@ -1,5 +1,6 @@
-# Stage 1: Build TypeScript
+# Stage 1: Build TypeScript (needs build tools for better-sqlite3 native addon)
 FROM node:20-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
