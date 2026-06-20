@@ -91,11 +91,10 @@ function ratingChar(r: number): string {
 }
 
 function sep(label: string, totalW = 26): string {
-  const len = [...label].length;
-  const frame = Math.max(0, totalW - len - 2);
+  const frame = Math.max(0, totalW - label.length);
   const left = "─".repeat(Math.floor(frame / 2));
   const right = "─".repeat(Math.ceil(frame / 2));
-  return left + " " + label + " " + right;
+  return left + label + right;
 }
 
 function profileEmb(p: NonNullable<ReturnType<typeof getCachedProfile>>, hasAvatar: boolean) {

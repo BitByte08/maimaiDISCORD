@@ -29,7 +29,7 @@ function absUrl(src: string | undefined): string {
   let clean = src.replace(/^\.\//, "");
   while (clean.startsWith("../")) clean = clean.slice(3);
   if (clean.startsWith("/")) return BASE + clean;
-  return BASE + "/" + clean;
+  return BASE + "/maimai-mobile/" + clean;
 }
 
 export function parseHome(html: string): Partial<MaimaiProfile> {
