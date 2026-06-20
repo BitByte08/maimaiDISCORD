@@ -53,16 +53,23 @@ function buildAvatarAttachment(userId: string): AttachmentBuilder | null {
   return new AttachmentBuilder(buf, { name: "avatar.png" });
 }
 
+function ratingColor(r: number): number {
+  if (r >= 15000) return 0x8b00ff;
+  if (r >= 14000) return 0xffd700;
+  if (r >= 13000) return 0xc0c0c0;
+  if (r >= 12000) return 0xcd7f32;
+  return 0x808080;
+}
+
 function profileEmb(p: NonNullable<ReturnType<typeof getCachedProfile>>, hasAvatar: boolean) {
-  const color = TCOLOR[p.trophyClass] ?? 0x808080;
   const grade = parseGradeText(p.gradeImg);
   const emb = new EmbedBuilder()
-    .setColor(color)
+    .setColor(ratingColor(p.rating))
     .setAuthor({ name: `${TICON[p.trophyClass] || "⚪"} ${p.trophy || "칭호 없음"} (${p.trophyClass})` })
     .setTitle(p.playerName || "이름 없음")
     .setDescription(
-      `★ **${p.rating || 0}**  (최대 ${p.ratingMax || p.rating || 0})\n` +
-      `🎮 ${p.playCount || 0}회${p.stars ? "  ⭐×" + p.stars : ""}${grade ? "  |  등급: " + grade : ""}`
+      `★ **${p.rating || 0}**\n` +
+      `🎮 ${p.playCount || 0}회${p.stars ? " ⭐×" + p.stars : ""}${grade ? " | 등급: " + grade : ""}`
     )
     .addFields({ name: "친구 코드", value: p.friendCode || "-", inline: true })
     .setFooter({ text: `마지막 동기화: ${new Date(p.lastSyncedAt).toLocaleString("ko-KR")}` });
