@@ -25,7 +25,9 @@ const BASE = "https://maimaidx-eng.com";
 function absUrl(src: string | undefined): string {
   if (!src) return "";
   if (src.startsWith("http")) return src;
-  let clean = src.replace(/^\.\.?\.?\//, "").replace(/^\.\.\//, "");
+  // Strip ALL leading ../ or ./ (e.g. ../../../img/Music/xxx.png → img/Music/xxx.png)
+  let clean = src.replace(/^\.\//, "");
+  while (clean.startsWith("../")) clean = clean.slice(3);
   if (clean.startsWith("/")) return BASE + clean;
   return BASE + "/maimai-mobile/" + clean;
 }

@@ -101,7 +101,7 @@ function profileEmb(p: NonNullable<ReturnType<typeof getCachedProfile>>, hasAvat
   const stars = p.stars && p.stars !== "0" ? " · ★×" + p.stars : "";
   const emb = new EmbedBuilder()
     .setColor(ratingColor(p.rating))
-    .setAuthor({ name: sep("Profile") })
+    .setAuthor({ name: sep("━ Profile", 26) })
     .setTitle(p.trophy || "칭호 없음")
     .setDescription(
       `**${p.playerName || "이름 없음"}**  ·  **${p.rating || 0}**\n` +
@@ -134,8 +134,13 @@ function songEmbeds(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: s
     const kind = r.musicKind ? ` [${r.musicKind}]` : "";
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
-      .setAuthor({ name: r.title })
-      .setDescription(`\`${r.diff} ${r.level}\` · ${r.achievement} · ${r.date || "-"}`);
+      .setAuthor({ name: sep("#" + idx, 18) })
+      .setTitle(r.title + kind)
+      .setDescription(`\`${r.diff} ${r.level}\``)
+      .addFields(
+        { name: "달성률", value: r.achievement, inline: true },
+        { name: "플레이일", value: r.date || "-", inline: true },
+      );
     if (r.jacketUrl) emb.setImage(r.jacketUrl);
     return emb;
   });
