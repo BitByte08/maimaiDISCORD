@@ -123,7 +123,7 @@ function getSongList(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: 
 
 function songEmbeds(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: string, page: number): EmbedBuilder[] {
   const records = getSongList(p, view);
-  const pageSize = 5;
+  const pageSize = 3;
   const start = (page - 1) * pageSize;
   const slice = records.slice(start, start + pageSize);
   if (slice.length === 0) {
@@ -132,16 +132,10 @@ function songEmbeds(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: s
   return slice.map((r: any, i: number) => {
     const idx = start + i + 1;
     const kind = r.musicKind ? ` [${r.musicKind}]` : "";
-    const descParts = [`${kind} \`${r.diff} ${r.level}\``];
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
-      .setAuthor({ name: sep(`#${idx}`) })
-      .setTitle(r.title)
-      .setDescription(descParts.join(" · "))
-      .addFields(
-        { name: "달성률", value: r.achievement, inline: true },
-        { name: "플레이일", value: r.date || "-", inline: true },
-      );
+      .setAuthor({ name: r.title })
+      .setDescription(`\`${r.diff} ${r.level}\` · ${r.achievement} · ${r.date || "-"}`);
     if (r.jacketUrl) emb.setImage(r.jacketUrl);
     return emb;
   });
@@ -150,7 +144,7 @@ function songEmbeds(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: s
 const PAGE_ID = "maimai_page";
 
 function paginationButtons(view: string, page: number, totalRecords: number): ActionRowBuilder<ButtonBuilder> {
-  const pageSize = 5;
+  const pageSize = 3;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`${PAGE_ID}:${view}:${page - 1}`).setLabel("◀ 이전").setStyle(ButtonStyle.Secondary).setDisabled(page <= 1),
