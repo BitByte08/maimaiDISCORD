@@ -116,10 +116,8 @@ function getSongList(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: 
   const raw = JSON.parse(p.recentJson || "{}");
   const recent: any[] = Array.isArray(raw) ? raw : (raw.recent || []);
   const top5: any[] = Array.isArray(raw) ? [] : (raw.top5 || []);
-  const rating: any[] = Array.isArray(raw) ? [] : (raw.rating || []);
   if (view === "recent") return recent;
   if (view === "top5") return top5;
-  if (view === "rating") return rating;
   return [];
 }
 
@@ -135,11 +133,10 @@ function songEmbeds(p: NonNullable<ReturnType<typeof getCachedProfile>>, view: s
     const idx = start + i + 1;
     const kind = r.musicKind ? ` [${r.musicKind}]` : "";
     const descParts = [`${kind} \`${r.diff} ${r.level}\``];
-    if (view === "rating" && r.ratingScore) descParts.push(`Rating +${r.ratingScore}`);
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setAuthor({ name: sep(`#${idx}`) })
-      .setTitle(sep(r.title, 22))
+      .setTitle(r.title)
       .setDescription(descParts.join(" · "))
       .addFields(
         { name: "달성률", value: r.achievement, inline: true },
@@ -167,7 +164,6 @@ function selectMenu(view: string) {
       .addOptions(
         { label: "최근 플레이", value: "recent", default: view === "recent" },
         { label: "TOP 5", value: "top5", default: view === "top5" },
-        { label: "레이팅 포함곡", value: "rating", default: view === "rating" },
       ),
   );
 }

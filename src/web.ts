@@ -1,6 +1,6 @@
 import * as http from "http";
 import * as fs from "fs";
-import { parseHome, parsePlayerData, parseFriendCode as parseFC, parseRecentRecords, parseTop5, parseRatingSongs } from "./scraper";
+import { parseHome, parsePlayerData, parseFriendCode as parseFC, parseRecentRecords, parseTop5 } from "./scraper";
 import { cacheProfile, saveUserSession, getUserSyncToken, findUserBySyncToken, saveAvatarBlob, getAvatarBlob } from "./db";
 
 let baseUrl = "";
@@ -17,14 +17,13 @@ var e=document,s=e.currentScript.src,u=new URL(s),c=u.searchParams.get('code')||
 var x=function(a){return fetch(a).then(function(r){return r.text()})};
 var q=['/maimai-mobile/home/','/maimai-mobile/playerData/','/maimai-mobile/record/','/maimai-mobile/friend/userFriendCode/'];
 var r=await Promise.all(q.map(x));
-var h=r[0],p=r[1],rd=r[2],f=r[3],rt='',a='';
-try{rt=await x('/maimai-mobile/rating/')}catch(e){console.log('rating fetch failed, skipping')}
+var h=r[0],p=r[1],rd=r[2],f=r[3],a='';
 try{
   var m=h.match(/src="(https:[^"]*Icon[^"]*)"/);
   if(m){var b=await fetch(m[1]).then(function(t){return t.blob()});
   a=await new Promise(function(d){var g=new FileReader();g.onload=function(){d(g.result)};g.readAsDataURL(b)})}
 }catch(e){}
-await fetch(v+'/sync?code='+c,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({h:h,p:p,r:rd,f:f,rt:rt,a:a})});
+await fetch(v+'/sync?code='+c,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({h:h,p:p,r:rd,f:f,a:a})});
 alert('\\uC644\\uB8CC!')
 })()`;
 
@@ -101,14 +100,12 @@ export function startWebServer(port: number): void {
       const playerHtml: string = data.p || "";
       const fcHtml: string = data.f || "";
       const recordHtml: string = data.r || "";
-      const ratingHtml: string = data.rt || "";
       const avatarBase64: string = data.a || "";
-      console.log(`[web] user=${userId.slice(-6)}, home=${homeHtml.length}B, player=${playerHtml.length}B, record=${recordHtml.length}B, fc=${fcHtml.length}B, rating=${ratingHtml.length}B`);
+      console.log(`[web] user=${userId.slice(-6)}, home=${homeHtml.length}B, player=${playerHtml.length}B, record=${recordHtml.length}B, fc=${fcHtml.length}B`);
       fs.writeFileSync("debug_home.html", homeHtml, "utf-8");
       fs.writeFileSync("debug_pd.html", playerHtml, "utf-8");
       fs.writeFileSync("debug_fc.html", fcHtml, "utf-8");
       fs.writeFileSync("debug_record.html", recordHtml, "utf-8");
-      fs.writeFileSync("debug_rating.html", ratingHtml, "utf-8");
 
       try {
         const home = parseHome(homeHtml);
@@ -123,8 +120,7 @@ export function startWebServer(port: number): void {
         const fc = effective.friendCode || (/^\d{13}$/.test(fcRaw) ? fcRaw : "") || token;
         const recentRecords = parseRecentRecords(recordHtml);
         const top5Records = parseTop5(recordHtml);
-        const ratingSongs = parseRatingSongs(ratingHtml);
-        console.log(`[web] recentRecords: ${recentRecords.length} songs, top5: ${top5Records.length} unique, rating: ${ratingSongs.length} songs`);
+        console.log(`[web] recentRecords: ${recentRecords.length} songs, top5: ${top5Records.length} unique`);
 
         cacheProfile({
           playerName: effective.playerName || "???", rating: effective.rating || 0,
@@ -132,7 +128,7 @@ export function startWebServer(port: number): void {
           avatar: effective.avatar || "", trophy: effective.trophy || "",
           trophyClass: effective.trophyClass || "normal", stars: effective.stars || "0",
           playCount: playCount || 0, comment: effective.comment || "", friendCode: fc,
-        }, playCount || 0, homeHtml, JSON.stringify({ recent: recentRecords, top5: top5Records, rating: ratingSongs }));
+        }, playCount || 0, homeHtml, JSON.stringify({ recent: recentRecords, top5: top5Records }));
         saveUserSession(userId, "{}", fc);
 
         // base64 아바타 → DB에 저장

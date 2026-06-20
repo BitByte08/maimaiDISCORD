@@ -25,7 +25,9 @@ const BASE = "https://maimaidx-eng.com";
 function absUrl(src: string | undefined): string {
   if (!src) return "";
   if (src.startsWith("http")) return src;
-  return BASE + (src.startsWith("/") ? "" : "/") + src;
+  let clean = src.replace(/^\.\.?\.?\//, "").replace(/^\.\.\//, "");
+  if (clean.startsWith("/")) return BASE + clean;
+  return BASE + "/maimai-mobile/" + clean;
 }
 
 export function parseHome(html: string): Partial<MaimaiProfile> {
@@ -127,67 +129,4 @@ export function parseSearchResult(html: string): SearchResult {
   };
   if (!profile.playerName) return { found: false, message: "찾을 수 없음" };
   return { found: true, profile };
-}
-
-export interface RatingSong extends PlayRecord {
-  ratingScore: number;
-}
-
-export function parseRatingSongs(html: string): RatingSong[] {
-  if (!html) return [];
-  const $ = cheerio.load(html);
-  const songs: RatingSong[] = [];
-  const PERCENT_PAT = /\d{1,3}\.\d{1,4}%/;
-
-  $("*").each((_, el) => {
-    const $el = $(el);
-    const text = $el.text().trim();
-
-    if (!text.match(PERCENT_PAT) && !text.includes("---.--%")) return;
-    if (text.length < 15) return;
-
-    const diffImg = $el.find("img[src*='diff_']").attr("src") || "";
-    if (!diffImg) return;
-
-    const ratingMatch = text.match(/(\d{1,4})\s*$/);
-    const ratingScore = ratingMatch ? Number(ratingMatch[1]) : 0;
-
-    const achText = $el.find(".playlog_achievement_txt, span:contains('%')").text().trim() || text;
-    const achVal = parseFloat(achText.replace(/[^\d.]/g, "")) || 0;
-
-    const diff = diffImg.includes("remaster") ? "Re:M" : diffImg.includes("master") ? "M" : diffImg.includes("expert") ? "E" : diffImg.includes("advanced") ? "A" : "B";
-    const level = ($el.find(".playlog_level_icon, .music_lv").text().trim() || "");
-
-    let title = "";
-    const basicBlock = $el.find(".basic_block, .music_name_block").first();
-    if (basicBlock.length) {
-      const clone = basicBlock.clone();
-      clone.find(".w_80, .playlog_level_icon, .music_lv, img").remove();
-      title = clone.text().trim();
-    }
-    if (!title) {
-      const parts = text.split(/\s{2,}/).filter(s => s.length > 1 && !s.includes("%") && !/^\d+$/.test(s));
-      title = parts[0] || "";
-    }
-
-    if (!title || title.length > 80) return;
-    songs.push({
-      title,
-      achievement: achText.includes("%") ? achText : achVal.toFixed(4) + "%",
-      diff, level,
-      date: "",
-      jacketUrl: "",
-      musicKind: "",
-      achievementVal: achVal,
-      ratingScore,
-    });
-  });
-
-  const seen = new Set<string>();
-  return songs.filter(s => {
-    const key = s.title + "|" + s.diff + "|" + s.level;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
