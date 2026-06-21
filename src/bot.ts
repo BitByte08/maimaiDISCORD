@@ -45,16 +45,7 @@ function buildAvatarAttachment(userId: string): AttachmentBuilder | null {
 }
 
 function ratingColor(r: number): number {
-  if (r >= 15000) return 0x8b00ff;
-  if (r >= 14000) return 0xffd700;
-  if (r >= 13000) return 0x8c8c8c;
-  if (r >= 12000) return 0xcd7f32;
-  if (r >= 10000) return 0xbd5dc7;
-  if (r >= 8000)  return 0xd95656;
-  if (r >= 6000)  return 0xf09c3c;
-  if (r >= 4000)  return 0x5fba63;
-  if (r >= 2000)  return 0x4d9eea;
-  return 0x95a5a6;
+  return ratingRoleName(r)?.color ?? 0x95a5a6;
 }
 
 const RATING_ROLES: [number, string, number][] = [
