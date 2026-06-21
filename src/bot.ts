@@ -58,13 +58,14 @@ function ratingColor(r: number): number {
 }
 
 const RATING_ROLES: [number, string, number][] = [
-  [15000, "MAIMAI 무지개", 0x8b00ff],
-  [14000, "MAIMAI 금",     0xffd700],
-  [13000, "MAIMAI 은",     0x8c8c8c],
-  [12000, "MAIMAI 동",     0xcd7f32],
-  [10000, "MAIMAI 보라",   0xbd5dc7],
-  [6000,  "MAIMAI 파랑",   0x4d9eea],
-  [2000,  "MAIMAI 청동",   0x95a5a6],
+  [15000, "무지개", 0x8b00ff],
+  [14500, "백금",   0xe5e4e2],
+  [14000, "금",     0xffd700],
+  [13000, "은",     0x8c8c8c],
+  [12000, "동",     0xcd7f32],
+  [10000, "보라",   0xbd5dc7],
+  [6000,  "파랑",   0x4d9eea],
+  [2000,  "청동",   0x95a5a6],
 ];
 
 function ratingRoleName(r: number): { name: string; color: number } | null {
@@ -201,8 +202,11 @@ async function handleRole(interaction: ChatInputCommandInteraction, userId: stri
     return;
   }
 
+  const tierNames = RATING_ROLES.map(([, name]) => name);
+  const allTierNames = [...tierNames, ...tierNames.map((n) => "MAIMAI " + n)];
+
   try {
-    const oldRoles = member.roles.cache.filter((r) => r.name.startsWith("MAIMAI "));
+    const oldRoles = member.roles.cache.filter((r) => allTierNames.includes(r.name));
     if (oldRoles.size > 0) await member.roles.remove(oldRoles);
 
     let targetRole = interaction.guild.roles.cache.find((r) => r.name === roleInfo.name);
@@ -212,6 +216,8 @@ async function handleRole(interaction: ChatInputCommandInteraction, userId: stri
         color: roleInfo.color,
         reason: "maimai 레이팅 자동 역할",
       });
+    } else if (targetRole.color !== roleInfo.color) {
+      await targetRole.setColor(roleInfo.color);
     }
 
     if (targetRole.position >= botMember.roles.highest.position) {
@@ -223,7 +229,7 @@ async function handleRole(interaction: ChatInputCommandInteraction, userId: stri
     }
 
     const allTierRoles = interaction.guild.roles.cache.filter((r) =>
-      RATING_ROLES.some(([, name]) => r.name === name)
+      allTierNames.includes(r.name)
     );
     await member.roles.remove(allTierRoles);
     await member.roles.add(targetRole);
