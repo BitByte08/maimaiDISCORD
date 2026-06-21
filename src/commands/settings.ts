@@ -1,9 +1,36 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags, PermissionsBitField } from "discord.js";
+import {
+  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder,
+  MessageFlags, PermissionsBitField, ActionRowBuilder, ButtonBuilder,
+  ButtonStyle, ButtonInteraction,
+} from "discord.js";
 import { getGuildSetting, setGuildSetting } from "../db";
 
 export const data = new SlashCommandBuilder()
   .setName("설정")
-  .setDescription("서버별 자동 역할 활성화/비활성화");
+  .setDescription("서버 설정 관리");
+
+function buildSettingsContent(guildId: string) {
+  const autoRole = getGuildSetting(guildId);
+  const embed = new EmbedBuilder()
+    .setTitle("⚙️ 서버 설정")
+    .setColor(0x5865f2)
+    .addFields({ name: "자동 역할 부여", value: autoRole ? "✅ 활성화" : "❌ 비활성화" });
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("settings:autorole:on")
+      .setLabel("활성화")
+      .setStyle(autoRole ? ButtonStyle.Success : ButtonStyle.Secondary)
+      .setDisabled(autoRole),
+    new ButtonBuilder()
+      .setCustomId("settings:autorole:off")
+      .setLabel("비활성화")
+      .setStyle(!autoRole ? ButtonStyle.Danger : ButtonStyle.Secondary)
+      .setDisabled(!autoRole),
+  );
+
+  return { embeds: [embed], components: [row] };
+}
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   if (!interaction.guild) {
@@ -14,14 +41,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.reply({ content: "서버 관리자만 사용 가능합니다.", flags: MessageFlags.Ephemeral });
     return;
   }
-  const next = !getGuildSetting(interaction.guild.id);
-  setGuildSetting(interaction.guild.id, next);
-  await interaction.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(next ? 0x5fba63 : 0xd95656)
-        .setDescription(`자동 역할: **${next ? "활성화" : "비활성화"}**`),
-    ],
-    flags: MessageFlags.Ephemeral,
-  });
+  await interaction.reply({ ...buildSettingsContent(interaction.guild.id), flags: MessageFlags.Ephemeral });
+}
+
+export async function handleButton(interaction: ButtonInteraction): Promise<void> {
+  if (!interaction.guild) return;
+  const parts = interaction.customId.split(":");
+  setGuildSetting(interaction.guild.id, parts[2] === "on");
+  await interaction.update(buildSettingsContent(interaction.guild.id));
 }

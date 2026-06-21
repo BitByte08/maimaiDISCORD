@@ -6,13 +6,12 @@ import { CONFIG, PORT } from "./config";
 
 import * as profile     from "./commands/profile";
 import * as bookmarklet from "./commands/bookmarklet";
-import * as role        from "./commands/role";
 import * as ratingtable from "./commands/ratingtable";
 import * as settings    from "./commands/settings";
 
 type Command = { data: { toJSON(): object; name: string }; execute: (i: ChatInputCommandInteraction) => Promise<void> };
 
-const COMMANDS: Command[] = [profile, bookmarklet, role, ratingtable, settings];
+const COMMANDS: Command[] = [profile, bookmarklet, ratingtable, settings];
 
 initEncryption(CONFIG.encryptionKey);
 if (CONFIG.baseUrl) setBaseUrl(CONFIG.baseUrl);
@@ -33,13 +32,22 @@ client.once(Events.ClientReady, async (c) => {
 });
 
 client.on(Events.InteractionCreate, async (i) => {
-  if (!i.isChatInputCommand()) return;
-  const cmd = COMMANDS.find((c) => c.data.name === i.commandName);
-  if (!cmd) return;
-  try {
-    await cmd.execute(i);
-  } catch (e) {
-    console.error(`[cmd:${i.commandName}]`, e);
+  if (i.isChatInputCommand()) {
+    const cmd = COMMANDS.find((c) => c.data.name === i.commandName);
+    if (!cmd) return;
+    try {
+      await cmd.execute(i);
+    } catch (e) {
+      console.error(`[cmd:${i.commandName}]`, e);
+    }
+    return;
+  }
+  if (i.isButton() && i.customId.startsWith("settings:")) {
+    try {
+      await settings.handleButton(i);
+    } catch (e) {
+      console.error("[settings-btn]", e);
+    }
   }
 });
 
