@@ -61,6 +61,11 @@ db.exec(`
     data TEXT NOT NULL,
     PRIMARY KEY (user_id, idx)
   );
+
+  CREATE TABLE IF NOT EXISTS guild_settings (
+    guild_id TEXT PRIMARY KEY,
+    auto_role INTEGER DEFAULT 1
+  );
 `);
 
 // ─── Queries ────────────────────────────────────────────────────────────
@@ -209,4 +214,13 @@ export function getJacket(userId: string, idx: number): Buffer | null {
   if (!row?.data) return null;
   const m = row.data.match(/^data:image\/\w+;base64,(.+)$/);
   return m ? Buffer.from(m[1], "base64") : null;
+}
+
+export function getGuildSetting(guildId: string): boolean {
+  const row = db.prepare("SELECT auto_role FROM guild_settings WHERE guild_id = ?").get(guildId) as { auto_role: number } | undefined;
+  return row ? row.auto_role === 1 : true;
+}
+
+export function setGuildSetting(guildId: string, autoRole: boolean): void {
+  db.prepare("INSERT OR REPLACE INTO guild_settings (guild_id, auto_role) VALUES (?, ?)").run(guildId, autoRole ? 1 : 0);
 }
