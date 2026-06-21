@@ -1,7 +1,7 @@
 import * as http from "http";
 import * as fs from "fs";
 import { parseHome, parsePlayerData, parseFriendCode as parseFC, parseRecentRecords, parseTop5 } from "./scraper";
-import { cacheProfile, saveUserSession, getUserSyncToken, findUserBySyncToken, saveAvatarBlob, getAvatarBlob, saveJacket, getJacket } from "./db";
+import { cacheProfile, saveUserSession, getUserSyncToken, findUserBySyncToken, saveAvatarBlob, getAvatarBlob, getSongJacket, saveSongJacket } from "./db";
 
 let baseUrl = "";
 export function setBaseUrl(url: string): void { baseUrl = url; }
@@ -87,12 +87,24 @@ export function startWebServer(port: number): void {
     }
 
     if (req.method === "GET" && url.pathname === "/jacket") {
-      const uid = url.searchParams.get("user") || "";
-      const idx = parseInt(url.searchParams.get("idx") || "0");
-      const data = getJacket(uid, idx);
-      if (data) {
-        res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=3600" });
-        res.end(data);
+      const musicId = url.searchParams.get("id") || "";
+      if (!musicId) { res.writeHead(400); res.end(); return; }
+      let imgData = getSongJacket(musicId);
+      if (!imgData) {
+        try {
+          const imgUrl = `https://maimaidx-eng.com/maimai-mobile/img/Music/${musicId}.png`;
+          const resp = await fetch(imgUrl);
+          if (resp.ok) {
+            imgData = Buffer.from(await resp.arrayBuffer());
+            saveSongJacket(musicId, imgData);
+          }
+        } catch (e) {
+          console.error("[jacket] fetch failed:", e);
+        }
+      }
+      if (imgData) {
+        res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=86400" });
+        res.end(imgData);
       } else {
         res.writeHead(404); res.end();
       }
@@ -218,10 +230,19 @@ a{color:#4caf50}
           const m = avatarBase64.match(/^data:image\/\w+;base64,(.+)$/);
           if (m) saveAvatarBlob(userId, m[1]);
         }
-        // 재킷 이미지 base64 → DB 저장
         if (Array.isArray(data.js)) {
-          data.js.forEach((j: any, i: number) => { if (j?.data) saveJacket(userId, i, j.data); });
-          console.log(`[web] jackets saved: ${data.js.length} images`);
+          let saved = 0;
+          data.js.forEach((j: any) => {
+            if (j?.data && j?.url) {
+              const m = (j.url as string).match(/\/img\/Music\/([^.]+)\.png/);
+              if (m) {
+                const b64 = (j.data as string).replace(/^data:image\/\w+;base64,/, "");
+                saveSongJacket(m[1], Buffer.from(b64, "base64"));
+                saved++;
+              }
+            }
+          });
+          console.log(`[web] song jackets saved: ${saved}`);
         }
         console.log(`[web] 저장: ${effective.playerName} ⭐${effective.rating} fc=${fc}`);
         res.writeHead(200); res.end("ok");
