@@ -106,7 +106,7 @@ function parseOneRecord($: cheerio.CheerioAPI, el: any): PlayRecord | null {
   const jacketUrl = absUrl($(el).find(".music_img").attr("src"));
   const kindSrc = $(el).find(".playlog_music_kind_icon").attr("src") || "";
   const kindFile = kindSrc.split("/").pop() || "";
-  const musicKind = kindFile.includes("_dx") ? "DX" : kindFile.includes("_standard") ? "STA" : "";
+  const musicKind = kindFile.includes("_dx") ? "DX" : kindFile.includes("_standard") ? "ST" : "";
   const date = $(el).find(".playlog_top_container span").eq(1).text().trim();
   const trackText = $(el).find(".playlog_top_container .red.f_b.v_b").text().trim();
   const track = parseInt(trackText.replace(/[^0-9]/g, "")) || 0;
@@ -133,7 +133,32 @@ export function parseTopSongs(html: string): PlayRecord[] {
 export function parseRatingTarget(html: string): PlayRecord[] {
   const $ = cheerio.load(html);
   const records: PlayRecord[] = [];
-  $(".p_10.t_l.f_0.v_b").each((_, el) => { const r = parseOneRecord($, el); if (r) records.push(r); });
+  const diffMap: Record<string, string> = {
+    "diff_basic.png": "BASIC",
+    "diff_advanced.png": "ADVANCED",
+    "diff_expert.png": "EXPERT",
+    "diff_master.png": "MASTER",
+    "diff_remaster.png": "Re:MASTER",
+  };
+  $("[class*='music_'][class*='_score_back']").each((_, el) => {
+    const block = $(el);
+    const title = block.find(".music_name_block").text().trim();
+    if (!title) return;
+    const level = block.find(".music_lv_block").text().trim();
+    const achievement = block.find(".music_score_block").text().trim();
+    const diffImg = (block.find("img").first().attr("src") || "").split("/").pop() || "";
+    const diff = diffMap[diffImg] || "";
+    const kindImg = (block.find(".music_kind_icon").attr("src") || "").split("/").pop() || "";
+    const musicKind = kindImg.includes("_dx") ? "DX" : kindImg.includes("_standard") ? "ST" : "";
+    const musicId = block.find("input[name='idx']").val() as string | undefined;
+    const jacketUrl = musicId ? `https://maimaidx-eng.com/maimai-mobile/img/Music/${musicId}.png` : "";
+    const achMatch = achievement.match(/(\d+\.\d+)/);
+    const achievementVal = achMatch ? parseFloat(achMatch[1]) : 0;
+    records.push({
+      title, achievement, diff, level, jacketUrl, musicKind, achievementVal,
+      date: "", track: 0, fc: "", sync: "",
+    });
+  });
   return records;
 }
 

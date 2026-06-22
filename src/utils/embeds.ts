@@ -96,7 +96,7 @@ export function recentEmbeds(
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setAuthor({ name: sep("#" + (i + 1), 34) })
-      .setTitle(truncate(r.title, 60 - kind.length) + kind)
+      .setTitle(truncate(r.title, 30 - kind.length) + kind)
       .setDescription(desc)
       .addFields(
         { name: "달성률", value: r.achievement, inline: true },
@@ -169,7 +169,7 @@ export function rtEmbeds(
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setAuthor({ name: sep(`#${rank}`, 34) })
-      .setTitle(truncate(r.title, 60 - kind.length) + kind)
+      .setTitle(truncate(r.title, 30 - kind.length) + kind)
       .setDescription(desc)
       .addFields({ name: "달성률", value: r.achievement, inline: true });
     if (jacketSrc) emb.setThumbnail(jacketSrc);
@@ -218,7 +218,7 @@ export function buildProfileReply(
     .setStyle(ButtonStyle.Secondary);
   const topBtn = new ButtonBuilder()
     .setCustomId(`rt:${userId}`)
-    .setLabel("레이팅 곡들")
+    .setLabel("레이팅 대상곡")
     .setStyle(ButtonStyle.Primary);
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(recentBtn, topBtn);
   return {
