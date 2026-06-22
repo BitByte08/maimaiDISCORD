@@ -43,6 +43,11 @@ export function getSongList(p: NonNullable<ReturnType<typeof getCachedProfile>>)
   return Array.isArray(raw) ? raw : (raw.recent || []);
 }
 
+export function getTopList(p: NonNullable<ReturnType<typeof getCachedProfile>>): PlayRecord[] {
+  const raw = JSON.parse(p.topJson || "[]");
+  return Array.isArray(raw) ? raw : [];
+}
+
 export function groupByGame(records: PlayRecord[]): PlayRecord[][] {
   const games: PlayRecord[][] = [];
   let current: PlayRecord[] = [];
@@ -127,17 +132,91 @@ export function recentEmbeds(
   return { embeds, components: [navRow, shareRow] };
 }
 
+const TOP_PAGE_SIZE = 5;
+
+export function topEmbeds(
+  p: NonNullable<ReturnType<typeof getCachedProfile>>,
+  userId: string,
+  port: number,
+  pageIdx: number,
+): { embeds: EmbedBuilder[]; components: ActionRowBuilder<ButtonBuilder>[] } {
+  const records = getTopList(p);
+
+  if (records.length === 0) {
+    return {
+      embeds: [new EmbedBuilder().setColor(0x2b2d31).setDescription("TOP 기록 없음\n북마클릿을 다시 실행하면 업데이트됩니다.")],
+      components: [],
+    };
+  }
+
+  const totalPages = Math.ceil(records.length / TOP_PAGE_SIZE);
+  const idx = Math.max(0, Math.min(pageIdx, totalPages - 1));
+  const start = idx * TOP_PAGE_SIZE;
+  const page = records.slice(start, start + TOP_PAGE_SIZE);
+  const server = getBaseUrl(port);
+
+  const embeds = page.map((r, i) => {
+    const rank = start + i + 1;
+    const kind = r.musicKind ? ` [${r.musicKind}]` : "";
+    const musicIdMatch = r.jacketUrl?.match(/\/img\/Music\/([^.]+)\.png/);
+    const jacketSrc = musicIdMatch ? `${server}/jacket?id=${musicIdMatch[1]}` : null;
+    const rankStr = [r.fc, r.sync].filter(Boolean).join(" · ");
+    const desc = `\`${r.diff} ${r.level}\`` + (rankStr ? `  ·  **${rankStr}**` : "");
+    const emb = new EmbedBuilder()
+      .setColor(0x2b2d31)
+      .setAuthor({ name: sep(`#${rank}`, 34) })
+      .setTitle(r.title + kind)
+      .setDescription(desc)
+      .addFields({ name: "달성률", value: r.achievement, inline: true });
+    if (jacketSrc) emb.setThumbnail(jacketSrc);
+    return emb;
+  });
+
+  const prevBtn = new ButtonBuilder()
+    .setCustomId(`toppage:${userId}:${idx - 1}`)
+    .setLabel("◀ 이전")
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(idx === 0);
+  const countBtn = new ButtonBuilder()
+    .setCustomId("toppage_noop")
+    .setLabel(`${idx + 1} / ${totalPages}`)
+    .setStyle(ButtonStyle.Primary)
+    .setDisabled(true);
+  const nextBtn = new ButtonBuilder()
+    .setCustomId(`toppage:${userId}:${idx + 1}`)
+    .setLabel("다음 ▶")
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(idx === totalPages - 1);
+
+  const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(prevBtn, countBtn, nextBtn);
+
+  const shareRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    page.map((_, si) =>
+      new ButtonBuilder()
+        .setCustomId(`topshare:${userId}:${idx}:${si}`)
+        .setLabel(`#${start + si + 1} 공유`)
+        .setStyle(ButtonStyle.Success),
+    ),
+  );
+
+  return { embeds, components: [navRow, shareRow] };
+}
+
 export function buildProfileReply(
   cached: NonNullable<ReturnType<typeof getCachedProfile>>,
   userId: string,
   port: number,
 ) {
   const avatar = buildAvatarAttachment(userId);
-  const btn = new ButtonBuilder()
+  const recentBtn = new ButtonBuilder()
     .setCustomId(`recent:${userId}`)
     .setLabel("최근 플레이")
     .setStyle(ButtonStyle.Secondary);
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(btn);
+  const topBtn = new ButtonBuilder()
+    .setCustomId(`top:${userId}`)
+    .setLabel("TOP 곡들")
+    .setStyle(ButtonStyle.Primary);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(recentBtn, topBtn);
   return {
     embeds: [profileEmb(cached, !!avatar)],
     files: avatar ? [avatar] : [],

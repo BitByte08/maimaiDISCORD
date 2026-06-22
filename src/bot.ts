@@ -3,7 +3,7 @@ import { initEncryption } from "./crypto";
 import { startWebServer, setBaseUrl } from "./web";
 import { closeDb, loadUserSession, getCachedProfile } from "./db";
 import { CONFIG, PORT } from "./config";
-import { recentEmbeds } from "./utils/embeds";
+import { recentEmbeds, topEmbeds } from "./utils/embeds";
 
 import * as profile     from "./commands/profile";
 import * as bookmarklet from "./commands/bookmarklet";
@@ -83,6 +83,46 @@ client.on(Events.InteractionCreate, async (i) => {
         await (i as ButtonInteraction).reply({ embeds: [emb] });
       } catch (e) {
         console.error("[share-btn]", e);
+      }
+      return;
+    }
+    if (i.customId.startsWith("top:") || i.customId.startsWith("toppage:")) {
+      try {
+        const parts = i.customId.split(":");
+        const userId = parts[1];
+        const pageIdx = parseInt(parts[2] ?? "0") || 0;
+        const stored = loadUserSession(userId);
+        if (!stored?.friendCode) { await (i as ButtonInteraction).reply({ content: "프로필을 먼저 등록하세요.", ephemeral: true }); return; }
+        const cached = getCachedProfile(stored.friendCode);
+        if (!cached) { await (i as ButtonInteraction).reply({ content: "프로필을 먼저 등록하세요.", ephemeral: true }); return; }
+        const result = topEmbeds(cached, userId, PORT, pageIdx);
+        if (i.customId.startsWith("top:")) {
+          await (i as ButtonInteraction).reply({ ...result, ephemeral: true });
+        } else {
+          await (i as ButtonInteraction).update(result);
+        }
+      } catch (e) {
+        console.error("[top-btn]", e);
+      }
+      return;
+    }
+    if (i.customId.startsWith("topshare:")) {
+      try {
+        const parts = i.customId.split(":");
+        const targetUserId = parts[1];
+        const pageIdx = parseInt(parts[2]) || 0;
+        const songIdx = parseInt(parts[3]) || 0;
+        const stored = loadUserSession(targetUserId);
+        if (!stored?.friendCode) { await (i as ButtonInteraction).reply({ content: "프로필을 찾을 수 없습니다.", ephemeral: true }); return; }
+        const cached = getCachedProfile(stored.friendCode);
+        if (!cached) { await (i as ButtonInteraction).reply({ content: "프로필을 찾을 수 없습니다.", ephemeral: true }); return; }
+        const result = topEmbeds(cached, targetUserId, PORT, pageIdx);
+        const emb = result.embeds[songIdx];
+        if (!emb) { await (i as ButtonInteraction).reply({ content: "곡을 찾을 수 없습니다.", ephemeral: true }); return; }
+        emb.setFooter({ text: `${cached.playerName}의 TOP  ·  공유: ${i.user.username}` });
+        await (i as ButtonInteraction).reply({ embeds: [emb] });
+      } catch (e) {
+        console.error("[topshare-btn]", e);
       }
       return;
     }
