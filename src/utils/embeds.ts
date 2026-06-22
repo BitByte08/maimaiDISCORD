@@ -14,8 +14,42 @@ export function sep(label: string, totalW = 36): string {
   return left + " " + label + " " + right;
 }
 
-function truncate(s: string, max: number): string {
-  return s.length > max ? s.slice(0, Math.max(0, max - 1)) + "…" : s;
+function isFullWidth(ch: string): boolean {
+  const code = ch.codePointAt(0) || 0;
+  return (
+    (code >= 0x1100 && code <= 0x115F) ||
+    (code >= 0x2E80 && code <= 0x303E) ||
+    (code >= 0x3041 && code <= 0x33FF) ||
+    (code >= 0x3400 && code <= 0x4DBF) ||
+    (code >= 0x4E00 && code <= 0x9FFF) ||
+    (code >= 0xA000 && code <= 0xA4CF) ||
+    (code >= 0xAC00 && code <= 0xD7A3) ||
+    (code >= 0xF900 && code <= 0xFAFF) ||
+    (code >= 0xFE30 && code <= 0xFE4F) ||
+    (code >= 0xFF00 && code <= 0xFF60) ||
+    (code >= 0xFFE0 && code <= 0xFFE6) ||
+    (code >= 0x20000 && code <= 0x2FFFD) ||
+    (code >= 0x30000 && code <= 0x3FFFD)
+  );
+}
+
+function visualWidth(s: string): number {
+  let w = 0;
+  for (const ch of s) w += isFullWidth(ch) ? 2 : 1;
+  return w;
+}
+
+function truncateVisual(s: string, maxWidth: number): string {
+  if (visualWidth(s) <= maxWidth) return s;
+  let w = 0;
+  let result = "";
+  for (const ch of s) {
+    const chW = isFullWidth(ch) ? 2 : 1;
+    if (w + chW + 1 > maxWidth) break;
+    result += ch;
+    w += chW;
+  }
+  return result + "…";
 }
 
 export function buildAvatarAttachment(userId: string): AttachmentBuilder | null {
@@ -96,7 +130,7 @@ export function recentEmbeds(
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setAuthor({ name: sep("#" + (i + 1), 34) })
-      .setTitle(truncate(r.title, 15 - kind.length) + kind)
+      .setTitle(truncateVisual(r.title, 30) + kind)
       .setDescription(desc)
       .addFields(
         { name: "달성률", value: r.achievement, inline: true },
@@ -169,7 +203,7 @@ export function rtEmbeds(
     const emb = new EmbedBuilder()
       .setColor(0x2b2d31)
       .setAuthor({ name: sep(`#${rank}`, 34) })
-      .setTitle(truncate(r.title, 15 - kind.length) + kind)
+      .setTitle(truncateVisual(r.title, 30) + kind)
       .setDescription(desc)
       .addFields({ name: "달성률", value: r.achievement, inline: true });
     if (jacketSrc) emb.setThumbnail(jacketSrc);
