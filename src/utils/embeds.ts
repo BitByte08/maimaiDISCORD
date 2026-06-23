@@ -3,7 +3,7 @@ import {
   ButtonBuilder, ButtonStyle, ActionRowBuilder,
 } from "discord.js";
 import { getCachedProfile, getAvatarBlob, getSongJacket, saveSongJacket } from "../db";
-import { getConstant, getJacketFile } from "../constants";
+import { getConstant, getJacketFile, levelToNumber, calcSongRating } from "../constants";
 import { ratingColor } from "./roles";
 import type { PlayRecord } from "../scraper";
 
@@ -75,6 +75,13 @@ function truncateVisual(s: string, maxWidth: number): string {
     w += chW;
   }
   return result + "…";
+}
+
+// 곡별 레이팅 점수 (상수 → 정수 상수, 없으면 레벨 근사)
+function songRating(r: PlayRecord): number {
+  const constant = getConstant(r.title, r.musicKind, r.diff);
+  const lvNum = constant !== null ? constant : levelToNumber(r.level);
+  return calcSongRating(r.achievementVal, lvNum);
 }
 
 export function buildAvatarAttachment(userId: string): AttachmentBuilder | null {
@@ -204,6 +211,9 @@ const DIFF_ABBR: Record<string, string> = {
   BASIC: "BAS", ADVANCED: "ADV", EXPERT: "EXP", MASTER: "MAS", "Re:MASTER": "ReM",
 };
 
+// RS를 곡명 앞에 둠: 곡명(가변 폭, CJK 포함)을 마지막에 두어야 정렬이 깨지지 않음
+const RT_HEADER = " # Dif Kd Lv      Score   RS  Title";
+
 function formatRtRow(r: PlayRecord, rank: number): string {
   const rankStr = String(rank).padStart(2);
   const diff = DIFF_ABBR[r.diff] ?? "???";
@@ -211,8 +221,9 @@ function formatRtRow(r: PlayRecord, rank: number): string {
   const constant = getConstant(r.title, r.musicKind, r.diff);
   const lv = (constant !== null ? constant.toFixed(1) : r.level).padEnd(4);
   const ach = (r.achievementVal > 0 ? r.achievementVal.toFixed(4) + "%" : r.achievement).padStart(9);
-  const title = truncateVisual(r.title, 20);
-  return `${rankStr} ${diff} ${kind} ${lv} ${ach}  ${title}`;
+  const rs = String(songRating(r)).padStart(3);
+  const title = truncateVisual(r.title, 26);
+  return `${rankStr} ${diff} ${kind} ${lv} ${ach}  ${rs}  ${title}`;
 }
 
 export function rtTableEmbed(
@@ -229,18 +240,18 @@ export function rtTableEmbed(
 
   const newRecords = records.slice(0, 15);
   const otherRecords = records.slice(15, 50);
-  const header = " # Dif Kd Lv       Score    Title\n";
 
-  const SEP = "─".repeat(43);
-  const buildRows = (recs: PlayRecord[], startRank: number) =>
-    recs.flatMap((r, i) =>
-      i > 0 && i % 5 === 0
-        ? [SEP, formatRtRow(r, startRank + i)]
-        : [formatRtRow(r, startRank + i)],
-    );
+  const newRows = newRecords.map((r, i) => formatRtRow(r, i + 1));
+  const otherRows = otherRecords.map((r, i) => formatRtRow(r, i + 1));
 
-  const newBlock = "```\n" + header + buildRows(newRecords, 1).join("\n") + "\n```";
-  const otherBlock = "```\n" + header + buildRows(otherRecords, 1).join("\n") + "\n```";
+  // 구분선 길이를 가장 긴 행(보통 ASCII 곡명)에 맞춰 표 너비와 일치시킴
+  const maxW = Math.max(visualWidth(RT_HEADER), ...newRows.map(visualWidth), ...otherRows.map(visualWidth));
+  const divider = "─".repeat(maxW);
+  const withSeps = (rows: string[]) =>
+    rows.flatMap((row, i) => (i > 0 && i % 5 === 0 ? [divider, row] : [row]));
+
+  const newBlock = "```\n" + RT_HEADER + "\n" + withSeps(newRows).join("\n") + "\n```";
+  const otherBlock = "```\n" + RT_HEADER + "\n" + withSeps(otherRows).join("\n") + "\n```";
 
   const desc =
     `**신곡 NEW · ${newRecords.length}곡**\n${newBlock}\n` +
@@ -252,7 +263,7 @@ export function rtTableEmbed(
         .setColor(0x2b2d31)
         .setAuthor({ name: sep("레이팅 대상곡") })
         .setDescription(desc)
-        .setFooter({ text: `총 ${newRecords.length + otherRecords.length}곡` }),
+        .setFooter({ text: `총 ${newRecords.length + otherRecords.length}곡  ·  RS=곡별 레이팅 점수 (AP 보너스 미반영, 실제와 다를 수 있음)` }),
     ],
     components: [],
   };

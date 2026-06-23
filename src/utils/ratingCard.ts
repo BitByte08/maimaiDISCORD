@@ -185,7 +185,8 @@ export async function renderRatingCard(
 
   const newVms = records.slice(0, 15).map(toVM);
   const otherVms = records.slice(15, 50).map(toVM);
-  const totalRs = newVms.concat(otherVms).reduce((s, v) => s + v.rs, 0);
+  // 헤더에는 프로필에 저장된 실제 레이팅을 표시 (곡별 합산값은 AP 미반영 추정치라 부정확)
+  const totalRs = profile.rating || newVms.concat(otherVms).reduce((s, v) => s + v.rs, 0);
 
   // prefetch all jacket images
   const files = [...new Set([...newVms, ...otherVms].flatMap((v) => (v.jacketFile ? [v.jacketFile] : [])))];

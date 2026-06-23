@@ -94,14 +94,26 @@ export function levelToNumber(level: string): number {
 }
 
 // 곡별 레이팅 점수 (maimai DX 공식, AP 보너스 제외)
+// achInt = 달성률 × 10000 (예: 100.5000% → 1005000)
 function maimaiCoefficient(achInt: number): number {
-  if (achInt >= 1005000) return 22.4;
-  if (achInt >= 1000000) return 21.6;
-  if (achInt >= 995000)  return 21.1;
-  if (achInt >= 990000)  return 20.8;
-  if (achInt >= 980000)  return 20.3;
-  if (achInt >= 970000)  return 20.0;
-  return 0; // S 미만은 레이팅 기여 없음
+  if (achInt >= 1005000) return 22.4; // SSS+
+  if (achInt >= 1000000) return 21.6; // SSS
+  if (achInt >= 995000)  return 21.1; // SS+
+  if (achInt >= 990000)  return 20.8; // SS
+  if (achInt >= 980000)  return 20.3; // S+
+  if (achInt >= 970000)  return 20.0; // S
+  if (achInt >= 940000)  return 16.8; // AAA
+  if (achInt >= 900000)  return 15.2; // AA
+  if (achInt >= 800000)  return 13.6; // A
+  if (achInt >= 750000)  return 12.0; // BBB
+  if (achInt >= 700000)  return 11.2; // BB
+  if (achInt >= 600000)  return  9.6; // B
+  if (achInt >= 500000)  return  8.0; // C
+  if (achInt >= 400000)  return  6.4; // D
+  if (achInt >= 300000)  return  4.8;
+  if (achInt >= 200000)  return  3.2;
+  if (achInt >= 100000)  return  1.6;
+  return 0.0;
 }
 
 export function calcSongRating(achievementVal: number, level: number): number {
