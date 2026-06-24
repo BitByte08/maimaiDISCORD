@@ -1,6 +1,6 @@
 import * as http from "http";
 import * as fs from "fs";
-import { parseHome, parsePlayerData, parseFriendCode as parseFC, parseRecentRecords, parseTop5, parseTopSongs, parseRatingTarget, mergeTopRecords } from "../scraper";
+import { parseHome, parsePlayerData, parseFriendCode as parseFC, parseRecentRecords, parseTop5, parseTopSongs, parseMusicScore, mergeTopRecords } from "../scraper";
 import { cacheProfile, getCachedProfile, saveUserSession, getUserSyncToken, findUserBySyncToken, saveAvatarBlob, getAvatarBlob, getSongJacket, saveSongJacket } from "../db";
 import { bookmarkletJs, setBaseUrl, getBaseUrl, buildBookmarklet } from "./bookmarklet";
 
@@ -267,8 +267,8 @@ a{color:#c084fc}
 
         const recentRecords = parseRecentRecords(recordHtml);
         const clearHtmls = [top4Html, top3Html, top2Html, top1Html, top0Html].filter((h) => h);
-        const clearRecords = clearHtmls.length > 0 ? mergeTopRecords(clearHtmls.map((h) => parseTopSongs(h))) : [];
-        const topRecords = ratingTargetHtml ? parseRatingTarget(ratingTargetHtml) : parseTop5(recordHtml);
+        const clearRecords = clearHtmls.length > 0 ? mergeTopRecords(clearHtmls.map((h) => parseMusicScore(h))) : [];
+        const topRecords = ratingTargetHtml ? parseMusicScore(ratingTargetHtml) : parseTop5(recordHtml);
         console.log(`[web] recentRecords: ${recentRecords.length} songs, top: ${topRecords.length} (rating target), clear: ${clearRecords.length}`);
 
         cacheProfile({

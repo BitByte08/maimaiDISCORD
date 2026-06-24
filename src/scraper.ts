@@ -130,7 +130,7 @@ export function parseTopSongs(html: string): PlayRecord[] {
   return records;
 }
 
-export function parseRatingTarget(html: string): PlayRecord[] {
+export function parseMusicScore(html: string): PlayRecord[] {
   const $ = cheerio.load(html);
   const records: PlayRecord[] = [];
   const diffMap: Record<string, string> = {
