@@ -1,4 +1,4 @@
-# Carol Bot — Design System
+# carol — Design System
 
 All UI surfaces (PNG rating card, web pages) share this single dark design language. Source of truth: `src/bot/utils/ratingCard.ts`.
 
@@ -145,7 +145,7 @@ linear-gradient(to bottom,
 
 ```
 "Created by"  →  color: #888
-"Carol"       →  color: #fff, fontWeight: 800
+"carol"      →  color: #fff, fontWeight: 800
 "bot"         →  color: #9333ea, fontWeight: 800
 ```
 

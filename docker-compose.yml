@@ -1,7 +1,7 @@
 services:
   bot:
-    image: ghcr.io/bitbyte08/mymai:latest
-    container_name: mymai-bot
+    image: ghcr.io/bitbyte08/carol:latest
+    container_name: carol-bot
     restart: unless-stopped
     volumes:
       - ./data:/app/data
@@ -14,7 +14,7 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: mymai-tunnel
+    container_name: carol-tunnel
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:

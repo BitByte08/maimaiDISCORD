@@ -223,7 +223,7 @@ export async function renderRatingCard(
 
   const wordmark = el("div", { display: "flex", alignItems: "baseline" }, [
     el("span", { fontSize: 13, fontWeight: 700, color: "#888", marginRight: 6 }, "Created by"),
-    el("span", { fontSize: 13, fontWeight: 800, color: "#fff" }, "Carol"),
+    el("span", { fontSize: 13, fontWeight: 800, color: "#fff" }, "carol"),
     el("span", { fontSize: 13, fontWeight: 800, color: ACCENT }, "bot"),
   ]);
 
