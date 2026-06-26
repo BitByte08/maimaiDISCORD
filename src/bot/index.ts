@@ -6,6 +6,7 @@ import { CONFIG, PORT } from "../config";
 import { recentEmbeds, rtTableEmbed, searchResultEmbeds } from "./utils/embeds";
 
 import { loadConstants } from "../constants";
+import { loadAliases } from "../aliases";
 import { loadFonts } from "../fonts";
 
 import * as profile      from "./commands/profile";
@@ -46,6 +47,8 @@ client.once(Events.ClientReady, async (c) => {
   await rest.put(route, { body: COMMANDS.map((cmd) => cmd.data.toJSON()) });
   await loadConstants();
   setInterval(() => loadConstants(), 24 * 60 * 60 * 1000);
+  loadAliases().catch((e) => console.error("[aliases] 초기 로드 실패:", e));
+  setInterval(() => loadAliases(), 24 * 60 * 60 * 1000);
   loadFonts().catch((e) => console.error("[fonts] 초기 로드 실패:", e));
   runRatingCardGC();
   setInterval(runRatingCardGC, RATING_CARD_GC_INTERVAL_MS);

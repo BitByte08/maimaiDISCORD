@@ -5,6 +5,7 @@ export const CONFIG = require("../config.json") as {
   encryptionKey?: string;
   webPort?: number;
   baseUrl?: string;
+  databaseUrl?: string;
 };
 
 export const PORT = CONFIG.webPort ?? 3456;

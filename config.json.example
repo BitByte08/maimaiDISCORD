@@ -3,5 +3,6 @@
   "clientId": "YOUR_DISCORD_APPLICATION_ID",
   "webPort": 3456,
   "encryptionKey": "optional-32-char-string-auto-generated-if-empty",
-  "baseUrl": "https://maimai.yourdomain.com"
+  "baseUrl": "https://maimai.yourdomain.com",
+  "databaseUrl": "postgresql://USER:PASSWORD@HOST/DB?sslmode=require (optional NeonDB for song aliases)"
 }
