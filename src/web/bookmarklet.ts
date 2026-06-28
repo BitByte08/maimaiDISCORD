@@ -7,6 +7,16 @@ export function buildBookmarklet(token: string, port: number): string {
   return `javascript:(function(d){var s=d.createElement('script');s.src='${server}/bookmarklet.js?code=${token}&v='+Math.floor(Date.now()/1e5);d.body.append(s)})(document)`;
 }
 
+export function buildBookmarkletJs(extras: Array<{ label: string; code: string }>): string {
+  if (extras.length === 0) return bookmarkletJs;
+  const extrasJson = JSON.stringify(extras);
+  const injection = `var _exbms=${extrasJson};if(_exbms.length>0){addSection('EXTRA');_exbms.forEach(function(bm,i){var _lbl=bm.label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');addRow('ex'+i,_lbl);try{var _c=bm.code.replace(/^javascript:/,'');eval(_c);okRow('ex'+i,'완료');}catch(_e){console.warn('[carol] extra:',bm.label,_e);failRow('ex'+i,'실패');}});}`;
+  const marker = "var fin=doc.createElement";
+  const pos = bookmarkletJs.indexOf(marker);
+  if (pos === -1) return bookmarkletJs;
+  return bookmarkletJs.slice(0, pos) + injection + marker + bookmarkletJs.slice(pos + marker.length);
+}
+
 export const bookmarkletJs = `(async()=>{
 var doc=document,s=doc.currentScript.src,u=new URL(s),c=u.searchParams.get('code')||'',v=u.origin;
 var old=doc.getElementById('mm-sync-ov');if(old)old.remove();

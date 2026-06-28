@@ -1,8 +1,8 @@
 import * as http from "http";
 import * as fs from "fs";
 import { parseHome, parsePlayerData, parseFriendCode as parseFC, parseRecentRecords, parseTop5, parseTopSongs, parseMusicScore, mergeTopRecords } from "../scraper";
-import { cacheProfile, getCachedProfile, saveUserSession, getUserSyncToken, findUserBySyncToken, saveAvatarBlob, getAvatarBlob, getSongJacket, saveSongJacket } from "../db";
-import { bookmarkletJs, setBaseUrl, getBaseUrl, buildBookmarklet } from "./bookmarklet";
+import { cacheProfile, getCachedProfile, saveUserSession, getUserSyncToken, findUserBySyncToken, saveAvatarBlob, getAvatarBlob, getSongJacket, saveSongJacket, getExtraBookmarklets } from "../db";
+import { buildBookmarkletJs, setBaseUrl, getBaseUrl, buildBookmarklet } from "./bookmarklet";
 
 export { setBaseUrl, getBaseUrl, buildBookmarklet };
 
@@ -152,7 +152,10 @@ export function startWebServer(port: number): void {
 
     if (req.method === "GET" && url.pathname === "/bookmarklet.js") {
       res.writeHead(200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-cache" });
-      res.end(bookmarkletJs);
+      const code = url.searchParams.get("code") ?? "";
+      const userId = code ? findUserBySyncToken(code) : null;
+      const extras = userId ? getExtraBookmarklets(userId) : [];
+      res.end(buildBookmarkletJs(extras));
       return;
     }
 
