@@ -1,0 +1,80 @@
+# WEB KNOWLEDGE BASE
+
+## OVERVIEW
+
+Raw Node HTTP server and browser-facing sync surface: install guide, settings UI/API, bookmarklet JS delivery, maimai DX NET HTML ingestion, and asset endpoints.
+
+## STRUCTURE
+
+```
+src/web/
+├── index.ts         # http.createServer routes, inline guide pages, /sync ingest
+├── bookmarklet.ts   # baseUrl helpers, preset list, generated bookmarklet JS
+├── settingsPage.ts  # full settings HTML/CSS/JS string
+└── dev.ts           # web-only local entrypoint
+```
+
+## WHERE TO LOOK
+
+| Task | Location | Notes |
+|---|---|---|
+| Add HTTP route | `index.ts` | Follow `if (req.method && url.pathname)` chains. |
+| Change install guide | `guidePage()` in `index.ts` | PC/mobile tabs plus settings link and extra bookmarklet guide. |
+| Change settings UI | `settingsPage.ts` | Inline HTML/CSS/JS; no framework. |
+| Change settings API | `index.ts` settings API block | `/api/settings`, `/privacy`, `/preset`, `/bookmarklet`. |
+| Change bookmarklet payload | `bookmarklet.ts` | Huge embedded JS string plus injection marker. |
+| Add built-in bookmarklet | `BOOKMARKLET_PRESETS` in `bookmarklet.ts` | Add preset object; state stored as ID in DB. |
+| Web-only local preview | `dev.ts` | Starts server without Discord token/login. |
+| Scrape sync pipeline | `POST /sync` in `index.ts` | Writes debug HTML, parses, caches, saves session/avatar/jackets. |
+| Jacket/avatar endpoints | `GET /jacket`, `GET /avatar` in `index.ts` | Cache-first asset responses. |
+
+## ROUTES
+
+| Route | Purpose |
+|---|---|
+| `GET /sync?code=TOKEN` | Bookmarklet install guide; dev preview allowed when `baseUrl` is empty. |
+| `POST /sync?code=TOKEN` | Receives bookmarklet HTML payload and caches profile/session data. |
+| `GET /settings?code=TOKEN` | User settings page: profile privacy, presets, extra bookmarklets. |
+| `GET /api/settings` | JSON `{ private, presets, bookmarklets }`. |
+| `POST /api/settings/privacy` | Toggle profile privacy. |
+| `POST /api/settings/preset` | Toggle preset IDs such as `maishift`. |
+| `POST /api/settings/bookmarklet` | Add/delete extra bookmarklets, max 5. |
+| `GET /bookmarklet.js?code=TOKEN` | Serves generated sync JS with enabled presets/extras. |
+| `GET /avatar`, `GET /jacket` | Stored/fetched PNG assets. |
+| `GET /privacy`, `GET /terms` | Static legal pages. |
+
+## CONVENTIONS
+
+- Do not introduce Express. `index.ts` intentionally uses Node `http` and manual routing.
+- Route auth is `sync_token` query param resolved by `findUserBySyncToken`; production rejects missing/expired tokens with 403.
+- `isDev = !CONFIG.baseUrl` allows local `/sync` and `/settings` preview without a token.
+- Web pages use inline CSS matching `docs/DESIGN.md`: dark canvas/surface, purple accents, Inter + JetBrains Mono.
+- `settingsPage()` serializes data with `<`/`>` escaped before embedding in `<script>`.
+- Extra bookmarklets must start with `javascript:` and are capped at 5.
+- Preset bookmarklets execute before user extra bookmarklets in generated `/bookmarklet.js`.
+- Bookmarklet execution is restricted to `maimaidx.jp` and `maimaidx-eng.com` before DOM work.
+
+## SYNC GOTCHAS
+
+- `/sync` writes `debug_home.html`, `debug_pd.html`, `debug_fc.html`, `debug_record.html`, `debug_rating_target.html` in repo root.
+- `no_change` skips parse/render/DB writes only when cached `clearJson` is non-empty and play count is unchanged.
+- Empty `clearJson` bypasses `no_change` so broken cached clear data can be repaired without play-count changes.
+- `POST /sync` stores recent records, rating target records, clear records, avatar, song jackets, and session friend code.
+- DX NET HTML selectors live in `src/scraper.ts`; check debug files first when SEGA layout changes.
+
+## ANTI-PATTERNS
+
+- Do not split web UI into React or templates unless explicitly requested; current surface is TS template strings.
+- Do not add a preset-specific DB column/API for each new built-in bookmarklet; use `BOOKMARKLET_PRESETS` + `preset_bookmarklets` IDs.
+- Do not move debug dumps into Docker data silently; docs expect repo-root files during dev.
+- Do not remove the domain guard from bookmarklet JS.
+- Do not let `baseUrl` drift from the public Cloudflare Tunnel URL in production.
+
+## VALIDATION
+
+```bash
+npm run build
+npm run dev:web
+```
+
+Manual QA: open `http://localhost:3456/sync` and `/settings` in local mode; use a real maimai DX NET page for bookmarklet sync behavior.

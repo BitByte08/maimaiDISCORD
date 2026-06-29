@@ -7,7 +7,6 @@ export interface BookmarkletPreset {
   label: string;
   description: string;
   code: string;
-  scriptUrl?: string;
 }
 
 export const BOOKMARKLET_PRESETS: BookmarkletPreset[] = [{
@@ -15,12 +14,11 @@ export const BOOKMARKLET_PRESETS: BookmarkletPreset[] = [{
   label: "maishift",
   description: "대부분 사용자가 함께 쓰는 maishift 북마클릿",
   code: "javascript:(function(i){var t=i.createElement(\"script\");t.src=\"https://maimai.shiftpsh.com/bookmarklet.js?v=\"+Math.floor(Date.now()/1e5),i.body.append(t)})(document);",
-  scriptUrl: "https://maimai.shiftpsh.com/bookmarklet.js",
 }];
 
-export function getBookmarkletPresets(ids: string[]): Array<{ label: string; code: string; scriptUrl?: string }> {
+export function getBookmarkletPresets(ids: string[]): Array<{ label: string; code: string }> {
   const enabled = new Set(ids);
-  return BOOKMARKLET_PRESETS.filter((preset) => enabled.has(preset.id)).map((preset) => ({ label: preset.label, code: preset.code, scriptUrl: preset.scriptUrl }));
+  return BOOKMARKLET_PRESETS.filter((preset) => enabled.has(preset.id)).map((preset) => ({ label: preset.label, code: preset.code }));
 }
 
 export function buildBookmarklet(token: string, port: number): string {
@@ -28,10 +26,10 @@ export function buildBookmarklet(token: string, port: number): string {
   return `javascript:(function(d){var s=d.createElement('script');s.src='${server}/bookmarklet.js?code=${token}&v='+Math.floor(Date.now()/1e5);d.body.append(s)})(document)`;
 }
 
-export function buildBookmarkletJs(extras: Array<{ label: string; code: string; scriptUrl?: string }>): string {
+export function buildBookmarkletJs(extras: Array<{ label: string; code: string }>): string {
   if (extras.length === 0) return bookmarkletJs;
   const extrasJson = JSON.stringify(extras);
-  const injection = `setTimeout(function(){var _exbms=${extrasJson};if(_exbms.length>0){addSection('EXTRA');_exbms.forEach(function(bm,i){var _id='ex'+i;var _lbl=bm.label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');addRow(_id,_lbl);function _fail(tx){setRow(_id,'\\u2715','#f87171',tx||'실패');}try{if(bm.scriptUrl){var _sc=doc.createElement('script');_sc.onload=function(){okRow(_id,'로드됨');};_sc.onerror=function(){console.warn('[carol] extra load:',bm.label,bm.scriptUrl);_fail('로드 실패');};_sc.src=bm.scriptUrl+(bm.scriptUrl.indexOf('?')===-1?'?':'&')+'v='+Math.floor(Date.now()/1e5);doc.body.appendChild(_sc);}else{var _c=bm.code.replace(/^javascript:/,'');eval(_c);okRow(_id,'완료');}}catch(_e){console.warn('[carol] extra:',bm.label,_e);_fail('실패');}});}},0);`;
+  const injection = `setTimeout(function(){var _exbms=${extrasJson};if(_exbms.length>0){addSection('EXTRA');_exbms.forEach(function(bm,i){var _id='ex'+i;var _lbl=bm.label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');addRow(_id,_lbl);function _fail(tx){setRow(_id,'\\u2715','#f87171',tx||'실패');}try{var _c=bm.code.replace(/^javascript:/,'');(0,eval)(_c);okRow(_id,'완료');}catch(_e){console.warn('[carol] extra:',bm.label,_e);_fail('실패');}});}},0);`;
   const marker = "})()";
   const pos = bookmarkletJs.lastIndexOf(marker);
   if (pos === -1) return bookmarkletJs;
@@ -40,7 +38,7 @@ export function buildBookmarkletJs(extras: Array<{ label: string; code: string; 
 
 export const bookmarkletJs = `(async()=>{
 var h=location.hostname;if(h!=='maimaidx.jp'&&h!=='maimaidx-eng.com'){alert('maimai DX NET 페이지에서 실행해주세요.\\nhttps://maimaidx-eng.com/maimai-mobile/');return;}
-var doc=document,s=doc.currentScript.src,u=new URL(s),c=u.searchParams.get('code')||'',v=u.origin;
+var doc=document,cur=doc.currentScript,s=cur.src,u=new URL(s),c=u.searchParams.get('code')||'',v=u.origin;if(cur&&cur.parentNode)cur.parentNode.removeChild(cur);try{if(performance&&performance.clearResourceTimings)performance.clearResourceTimings();}catch(_pe){}
 var old=doc.getElementById('mm-sync-ov');if(old)old.remove();
 var ov=doc.createElement('div');ov.id='mm-sync-ov';
 ov.style.cssText='position:fixed;top:16px;right:16px;z-index:2147483647;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:16px 18px;font:13px Inter,system-ui,-apple-system,sans-serif;color:#cccccc;min-width:300px;max-width:340px;max-height:calc(100vh - 32px);overflow-y:auto;box-shadow:0 12px 36px rgba(0,0,0,.55),0 0 0 1px rgba(147,51,234,.12)';

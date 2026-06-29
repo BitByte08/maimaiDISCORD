@@ -1,159 +1,99 @@
-# AGENTS.md — carol
+# PROJECT KNOWLEDGE BASE
 
-Discord bot that exposes maimai DX NET profiles via a bookmarklet. No SEGA credentials stored; users push HTML from their own browser session.
+**Generated:** 2026-06-29
+**Commit:** ce12773
+**Branch:** master
 
-## Developer Commands
+## OVERVIEW
+
+carol is a Discord bot plus raw Node HTTP server for maimai DX NET profiles. Users run a bookmarklet in their own logged-in browser; the server stores encrypted/session-derived profile data, never SEGA credentials.
+
+## STRUCTURE
+
+```
+carol/
+├── src/                 # shared TS runtime: DB, scraping, constants, crypto, fonts
+│   ├── bot/             # Discord client, slash commands, embeds, roles, PNG cards
+│   └── web/             # raw http server, bookmarklet JS, settings pages/APIs
+├── docs/                # deployment/setup/design references
+├── .github/workflows/   # master -> GHCR image -> GCP VM deploy
+├── Dockerfile           # node:20-slim two-stage TS build
+└── docker-compose.yml   # bot + cloudflared tunnel, ./data volume
+```
+
+## WHERE TO LOOK
+
+| Task | Location | Notes |
+|---|---|---|
+| Bot startup / command registration | `src/bot/index.ts` | Also starts the web server and routes button `customId`s. |
+| Slash command behavior | `src/bot/commands/` | Korean command names; modules export `data` + `execute`. |
+| Recent/search/rating embeds | `src/bot/utils/embeds.ts` | Button builders and paginated embed assembly. |
+| Rating-card PNG | `src/bot/utils/ratingCard.ts` | satori + resvg, no JSX; DB render cache by sync time/version. |
+| Auto role tiers | `src/bot/utils/roles.ts` | Guild auto-role toggle is `/서버설정`, not user `/설정`. |
+| Web routes / sync ingest | `src/web/index.ts` | Manual `req.method` + `url.pathname` chains. |
+| Bookmarklet source | `src/web/bookmarklet.ts` | Embedded JS string; preset bookmarklets injected before extras. |
+| Web settings UI | `src/web/settingsPage.ts` | Inline HTML/CSS/JS, no React/templates. |
+| DB schema/storage | `src/db.ts` | better-sqlite3 singleton; additive migrations only. |
+| maimai parsing | `src/scraper.ts` | Cheerio selectors tied to DX NET markup. |
+| Song constants/jackets | `src/constants.ts` | otoge-db cache; startup network failure is non-fatal. |
+| Visual tokens | `docs/DESIGN.md` | Dark theme shared by web and rating card. |
+| Deploy/runbook | `docs/DEPLOY.md`, `docs/SETUP.md` | Cloudflare tunnel + GCP VM workflow. |
+
+## CODE MAP
+
+TypeScript LSP was unavailable in this workspace, and codegraph is not indexed. Centrality below is based on direct file inspection.
+
+| Symbol / File | Type | Location | Role |
+|---|---|---|---|
+| `COMMANDS` | registry | `src/bot/index.ts` | Registers all slash commands through Discord REST. |
+| `client.on(Events.InteractionCreate)` | router | `src/bot/index.ts` | Dispatches commands plus `serverset:`, `recent:`, `page:`, `share:`, `rt:`, `search:` buttons. |
+| `startWebServer` | entry | `src/web/index.ts` | Owns all HTTP routes and `/sync` parse/cache pipeline. |
+| `guidePage` | HTML generator | `src/web/index.ts` | `/sync` install UI for PC/mobile plus settings link. |
+| `settingsPage` | HTML generator | `src/web/settingsPage.ts` | Privacy, preset bookmarklets, extra bookmarklet CRUD. |
+| `buildBookmarkletJs` | generator | `src/web/bookmarklet.ts` | Wraps embedded sync JS and evaluates enabled extra scripts. |
+| `BOOKMARKLET_PRESETS` | config list | `src/web/bookmarklet.ts` | Built-in bookmarklets; first preset is `maishift`. |
+| `cacheProfile` / `saveUserSession` | persistence | `src/db.ts` | Main write path after `/sync`. |
+| `getUserSyncToken` / `findUserBySyncToken` | auth link | `src/db.ts` | Token-based web access for `/sync` and `/settings`. |
+| `parseHome` / `parseMusicScore` | scraper | `src/scraper.ts` | CSS-selector parsing of DX NET HTML. |
+| `renderRatingCard` | PNG render | `src/bot/utils/ratingCard.ts` | Rating image generation and cache population. |
+
+## CONVENTIONS
+
+- Config is `config.json` in repo root, copied from `config.json.example`; not `.env`. Docker also needs `.env` only for `CF_TUNNEL_TOKEN`.
+- Empty `encryptionKey` is generated on first start and written back to `config.json`; do not overwrite the file after first run.
+- `baseUrl` controls bookmarklet URLs. Empty means local `http://localhost:{webPort}`; production must set the tunnel/domain URL.
+- TypeScript is strict CommonJS targeting ES2022. Build output, declarations, and maps go to `dist/`.
+- SQLite schema changes are additive only: `try { db.exec("ALTER TABLE ... ADD COLUMN ...") } catch (_) {}` in `src/db.ts`.
+- Slash commands use Korean names. User `/설정` links to web settings; guild auto-role lives in `/서버설정`.
+- Web UI is inline string HTML/CSS/JS. Match `docs/DESIGN.md`: `#0d0d0d` canvas, `#1a1a1a` surface, `#2a2a2a` border, `#9333ea` accent, Inter + JetBrains Mono.
+- Rating-card UI uses satori without JSX via the local `el()` helper and NotoSansJP fonts cached under `{DATA_DIR}/fonts/`.
+
+## ANTI-PATTERNS (THIS PROJECT)
+
+- Do not store SEGA credentials. Bookmarklet-pushed HTML/cookies are the only current sync path.
+- Do not use DROP/RENAME migrations; keep DB schema additive.
+- Do not import Express or routers for web routes; `src/web/index.ts` intentionally uses raw `http` and manual route chains.
+- Do not change `customId` formats casually; builder code and `src/bot/index.ts` router must change together.
+- Do not rely on `auth.ts` for the current flow; it is a full login/session client but not wired into bookmarklet sync.
+- Do not treat DX NET selectors as stable. On scraping breakage, inspect `debug_home.html`, `debug_pd.html`, `debug_fc.html`, `debug_record.html`, `debug_rating_target.html`.
+- Do not re-render rating cards unnecessarily; `rating_card_blob` is cached until `lastSyncedAt` or card version changes.
+
+## COMMANDS
 
 ```bash
-npm run build   # tsc → dist/
-npm start       # node dist/bot/index.js (production)
-npm run dev     # ts-node src/bot/index.ts (dev, no compile step)
-```
-
-No test runner, no linter, no formatter configured.
-
-## Config
-
-`config.json` in the repo root (copied from `config.json.example`). **Not `.env`.**
-
-```jsonc
-{
-  "token": "DISCORD_BOT_TOKEN",
-  "clientId": "APPLICATION_ID",
-  "guildId": "optional — guild-scoped commands if set",
-  "webPort": 3456,
-  "encryptionKey": "leave empty to auto-generate",
-  "baseUrl": "https://your-domain.com"   // required in prod; omit for local
-}
-```
-
-- If `encryptionKey` is empty, the bot generates one on first start and **writes it back into `config.json`**. Don't overwrite the file after first run.
-- `baseUrl` controls the bookmarklet URL. Omitting it defaults to `http://localhost:{webPort}`, which breaks the browser→server sync in production.
-
-Docker also needs `.env` with `CF_TUNNEL_TOKEN` (Cloudflare tunnel token).
-
-## Architecture
-
-```
-src/bot/index.ts  ←── entry point: Discord client + HTTP server startup
-  │
-  ├── bot/commands/   slash command handlers (프로필, 북마클릿, 검색, 레이팅기준표, 레이팅표, 설정)
-  └── bot/utils/
-        embeds.ts     discord.js EmbedBuilder helpers, jacket fetch logic
-        ratingCard.ts satori (JSX-free) + @resvg/resvg-js → PNG; render cached by lastSyncedAt
-        roles.ts      rating-tier → Discord role mapping & auto-assign logic
-
-src/web/index.ts  ←── Node http server (not Express) on webPort
-  │     GET /sync          serves bookmarklet install guide page
-  │     POST /sync         receives HTML payload from bookmarklet, parses & caches
-  │                        (rejects with "no_change" if playCount unchanged)
-  │     GET /avatar        serves stored avatar PNG by Discord user ID
-  │     GET /jacket        serves song jacket PNG by music ID (fetches from SEGA if not cached)
-  │     GET /bookmarklet.js serves the inline bookmarklet JS
-  │     GET /privacy       privacy policy page
-  │     GET /terms         terms of service page
-  └── web/bookmarklet.ts  bookmarkletJs constant, buildBookmarklet, setBaseUrl, getBaseUrl
-
-src/ (shared)
-  config.ts    config.json reader
-  constants.ts song level constants from otoge-db.net; persisted to DB (constants_cache table)
-  crypto.ts    AES-256-GCM encrypt/decrypt
-  db.ts        better-sqlite3; tables: profiles, sessions, jackets, guild_settings, song_jackets, constants_cache
-  fonts.ts     NotoSansJP download/cache for satori
-  scraper.ts   cheerio parsing of maimai DX net HTML pages
-  auth.ts      MaimaiSession (full HTTP login) — NOT used in current flow
-
-docs/
-  DESIGN.md    design token reference (dark theme, extracted from ratingCard.ts)
-```
-
-## Database
-
-SQLite file at `maimai.db` (dev root) or `/app/data/maimai.db` (Docker, via `DATA_DIR` env).
-
-**Schema migrations use try/catch `ALTER TABLE ADD COLUMN`** — no migration framework. When adding a column, follow the existing pattern at the bottom of `db.ts`:
-
-```ts
-try { db.exec("ALTER TABLE profiles ADD COLUMN new_col TEXT DEFAULT ''"); } catch (_) {}
-```
-
-Do not use DROP/RENAME; schema is additive only.
-
-Tables:
-- `profiles` — maimai player data; includes `rating_card_blob BLOB` and `rating_card_synced_at INTEGER` for PNG render cache (auto-cleared for profiles not synced in 7+ days)
-- `sessions` — Discord user ↔ friend_code + encrypted cookie + sync_token + avatar_blob
-- `jackets` — per-user indexed recent jacket base64 (not used for rating card)
-- `guild_settings` — per-guild auto-role toggle
-- `song_jackets` — shared song jacket PNGs keyed by music_id / otoge-db filename
-- `constants_cache` — serialized song constant + jacket maps from otoge-db.net, survives restarts
-
-## Rating Card Cache GC
-
-`rating_card_blob` (per-profile PNG) is cleared automatically for profiles whose `last_synced_at` is older than 7 days. Triggered on bot startup and every 24h via `setInterval`. The next `/레이팅표` request re-renders and re-saves. Implemented in [src/db.ts](file:///C:/Users/bitbyte08/Documents/maimai/src/db.ts) (`clearRatingCardCacheForInactive`) and wired in [src/bot/index.ts](file:///C:/Users/bitbyte08/Documents/maimai/src/bot/index.ts) (`runRatingCardGC`).
-
-## TypeScript
-
-- `strict: true`, `target: ES2022`, `module: commonjs`
-- Output goes to `dist/`. The `dist/` dir is in `.gitignore`; Docker builds it during image build.
-- `resolveJsonModule: true` — `config.json` is imported directly via `require("../config.json")` in `config.ts`
-
-## Web Server Quirk
-
-`src/web/index.ts` uses Node's built-in `http` module, not Express. Route matching is manual `if` chains on `req.method + url.pathname`. Add new routes by following that pattern, not by importing a router.
-
-## HTML Scraping
-
-`scraper.ts` CSS selectors target maimai DX net's HTML structure (e.g., `.name_block`, `.rating_block`, `.trophy_inner_block`). These **will break if SEGA updates their page layout**. When scraping issues occur, check the debug HTML files written to repo root on each sync:
-
-- `debug_home.html`, `debug_pd.html`, `debug_fc.html`, `debug_record.html`, `debug_rating_target.html`
-
-These are dev artifacts written by `web/index.ts`'s POST `/sync` handler. They exist in the working directory, not in Docker's `/app/data`.
-
-## Rating Image Rendering
-
-`src/bot/utils/ratingCard.ts` uses `satori` (no JSX — manual `el()` helper) + `@resvg/resvg-js` to produce PNG. The rendered PNG is cached in `profiles.rating_card_blob` (keyed by `rating_card_synced_at`) and reused until `lastSyncedAt` changes — i.e., the user runs the bookmarklet again. Fonts are fetched from jsDelivr on first render and cached to `{DATA_DIR}/fonts/`. If fonts are missing, the first rating image request will download them; subsequent calls use the cache.
-
-## Song Constants
-
-`src/constants.ts` fetches from `otoge-db.net` at startup and every 24h. International data takes priority over JP data. Constants are persisted to the `constants_cache` DB table and survive restarts — startup skips the network fetch if the cached data is < 24h old. Network failure at startup is non-fatal (logged, falls back to DB cache or empty map). Without constants, rating score calculations fall back to the display level string (less accurate).
-
-## Design System
-
-See `docs/DESIGN.md` for the full design token reference. All web UI in `src/web/` uses the dark theme defined there:
-
-- **Canvas**: `#0d0d0d`  **Surface**: `#1a1a1a`  **Border**: `#2a2a2a`
-- **Accent**: `#9333ea`
-- **Font**: Inter + JetBrains Mono (web), NotoSansJP (satori/PNG)
-
-## Discord Commands
-
-All slash command names are Korean (`/프로필`, `/북마클릿`, `/검색`, `/레이팅기준표`, `/레이팅표`). The `설정` command handles a guild-level auto-role toggle. `/검색` searches the user's stored clear records by case-insensitive title substring. Each result embed shows all 5 difficulties (BASIC/ADV/EXP/MAS/ReM) with per-diff achievement, fc/sync rank, and the song's best score. Paginated 5 songs per page, with jacket thumbnails. Commands are registered globally unless `guildId` is set in config (guild-scope = instant update, useful for dev).
-
-## Docker & Deployment
-
-```bash
-# Local Docker
-docker compose up -d   # runs bot + cloudflared tunnel
-
-# Production (GCP VM)
-cd ~/carol
-git pull origin master
-docker compose pull
+npm run build     # tsc -> dist/
+npm start         # node dist/bot/index.js
+npm run dev       # ts-node src/bot/index.ts
+npm run dev:web   # ts-node src/web/dev.ts, no Discord client
 docker compose up -d
-docker image prune -f
 ```
 
-- Volume: `./data` → `/app/data` (DB + fonts persisted here)
-- `config.json` is mounted read-only into the container
-- Healthcheck hits `http://localhost:3456/` and expects 404 (any non-error response)
+No test runner, linter, or formatter is configured. Validation is `npm run build` plus manual Discord/web/bookmarklet checks.
 
-**CI/CD**: push to `master` → GitHub Actions builds image → pushes to GHCR → SSH into GCP VM → `docker compose pull && up -d`.
+## NOTES
 
-Required GitHub secrets: `GCP_HOST`, `GCP_USER`, `GCP_SSH_KEY`.
-
-## Key Constraints
-
-- **No SEGA credentials** are ever stored. Session cookies come from the user's own browser via bookmarklet; the bot only stores the opaque encrypted blob.
-- `auth.ts` (`MaimaiSession`) is a full HTTP session/login implementation but is **not used** in the current bot flow — bookmarklet push is the only sync mechanism.
-- Button interaction `customId` format is load-bearing: `recent:{userId}:{gameIdx}`, `page:{userId}:{gameIdx}`, `share:{userId}:{gameIdx}:{songIdx}`, `rt:{userId}`, `search:{userId}:{encodedQuery}:{pageIdx}`, `settings:{...}`. Changing the format requires updating both the builder (commands/utils) and the router in `bot/index.ts`. Search query is URL-encoded to safely handle colons and non-ASCII characters.
-- POST `/sync` returns `"no_change"` (HTTP 200) if the incoming playCount matches the cached value AND `clearJson` is non-empty, skipping re-parse, re-render, and DB writes. Empty `clearJson` bypasses the guard so users with broken-cached data can re-sync without bumping playCount.
+- `POST /sync` returns HTTP 200 body `no_change` when play count matches cached data and `clearJson` is non-empty; empty `clearJson` bypasses the guard.
+- Debug HTML files are dev artifacts written to repo root, not Docker `/app/data`.
+- Runtime data is `maimai.db` in dev root or `/app/data/maimai.db` in Docker.
+- GitHub Actions triggers on `master`, builds/pushes GHCR image, then SSHes to GCP VM and runs `docker compose pull && docker compose up -d && docker image prune -f`.
+- `.dockerignore` excludes config, DB/data, debug HTML, `.git`, and local generated artifacts from images.
