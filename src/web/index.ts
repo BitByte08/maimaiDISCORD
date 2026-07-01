@@ -7,8 +7,27 @@ import { settingsPage } from "./settingsPage";
 import { CONFIG } from "../config";
 
 const isDev = !CONFIG.baseUrl;
+const DISCORD_INVITE_BASE_URL = "https://discord.com/oauth2/authorize";
+const DISCORD_INVITE_PERMISSIONS = "2415938560";
+const DISCORD_INVITE_INTEGRATION_TYPE = "0";
 
 export { setBaseUrl, getBaseUrl, buildBookmarklet };
+
+function discordInviteUrl(): string | null {
+  const configuredUrl = CONFIG.discordInviteUrl?.trim();
+  if (configuredUrl) return configuredUrl;
+
+  const clientId = CONFIG.clientId.trim();
+  if (!clientId) return null;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    permissions: DISCORD_INVITE_PERMISSIONS,
+    integration_type: DISCORD_INVITE_INTEGRATION_TYPE,
+    scope: "applications.commands bot",
+  });
+  return `${DISCORD_INVITE_BASE_URL}?${params.toString()}`;
+}
 
 function guidePage(token: string, bookmarklet: string): string {
   const bmEscaped = bookmarklet.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/`/g, "\\`");
@@ -137,6 +156,14 @@ export function startWebServer(port: number): void {
     if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
     const url = new URL(req.url || "/", `http://localhost:${port}`);
+
+    if (req.method === "GET" && url.pathname === "/invite") {
+      const targetUrl = discordInviteUrl();
+      if (!targetUrl) { res.writeHead(500); res.end("missing_client_id"); return; }
+      res.writeHead(302, { Location: targetUrl, "cache-control": "no-cache" });
+      res.end();
+      return;
+    }
 
     if (req.method === "GET" && url.pathname === "/avatar") {
       const uid = url.searchParams.get("user") || "";
