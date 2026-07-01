@@ -1,4 +1,4 @@
-# 🎵 carol
+# carol
 
 **maimai DX NET** 프로필을 Discord에서 확인하는 봇입니다.
 
@@ -10,6 +10,9 @@
 - **최근 플레이** — 5곡 + 페이징 (달성률, 난이도, 레벨, 재킷 이미지)
 - **TOP 5** — 곡별 최고 달성률 기준 상위 5곡
 - **레이팅 포함곡** — 레이팅 계산에 포함된 곡 목록
+- **곡 검색** — 내 클리어 기록에서 곡명 일부 일치 검색
+- **레이팅표 이미지** — 레이팅 대상곡을 PNG 카드로 렌더링
+- **서버 자동 역할** — 레이팅 티어별 Discord 역할 자동 부여 설정
 - **멀티유저** — 각 Discord 유저별 독립 프로필 연동
 
 ## 아키텍처
@@ -37,7 +40,7 @@ Discord → /프로필 → 북마클릿 코드 받음
 ## 빠른 시작
 
 ```bash
-git clone https://github.com/BitByte08/carol.git
+git clone https://github.com/team-carol/carol.git
 cd carol
 npm install
 cp config.json.example config.json
@@ -52,41 +55,61 @@ npm start
 {
   "token": "DISCORD_BOT_TOKEN",
   "clientId": "APPLICATION_ID",
+  "guildId": "TEST_GUILD_ID",        // 선택: 특정 서버에만 명령어 등록
   "webPort": 3456,               // 웹 서버 포트
   "encryptionKey": "",           // 빈 값이면 자동 생성
-  "baseUrl": ""                  // 프로덕션에서만 입력
+  "baseUrl": "",                 // 프로덕션에서만 입력
+  "discordInviteUrl": "",        // 선택: /invite 리다이렉트 대상
+  "databaseUrl": ""              // 선택: NeonDB 곡 별칭 DB
 }
 ```
+
+- `baseUrl`: 비워두면 `http://localhost:{webPort}`를 사용합니다. Cloudflare Tunnel 등으로 배포하면 공개 HTTPS URL을 입력하세요.
+- `discordInviteUrl`: 비워두면 `/invite`가 `clientId`로 기본 초대 링크를 생성합니다. 기본 권한은 `permissions=2415938560`, `integration_type=0`, `scope=applications.commands+bot`입니다. 권한 값을 직접 조정한 긴 OAuth2 URL이 있다면 여기에 넣으면 됩니다.
+- `databaseUrl`: 비워두면 곡 별칭 기능 없이 SQLite 기반 프로필 캐시만 사용합니다.
+
+## 웹 경로
+
+| 경로 | 설명 |
+|------|------|
+| `/invite` | Discord 봇 초대 링크로 리다이렉트 |
+| `/sync?code=...` | 북마클릿 설치 가이드 및 동기화 진입점 |
+| `/settings?code=...` | 개인정보/프리셋/추가 북마클릿 설정 |
+| `/privacy` | 개인정보처리방침 |
+| `/terms` | 이용약관 |
 
 ## 명령어
 
 | 명령어 | 설명 |
 |--------|------|
-| `/프로필` | 연동된 maimai DX NET 프로필 표시 |
-| `/북마클릿` | 동기화용 북마클릿 코드 발급 |
+| `/프로필 [user]` | 연동된 maimai DX NET 프로필 표시 |
+| `/북마클릿 [action] [이름] [코드]` | 설치 가이드 열기, 추가 북마클릿 등록/목록/삭제 |
+| `/레이팅기준표` | 레이팅 티어 기준표 표시 |
+| `/레이팅표 [user]` | 레이팅 대상곡을 이미지로 표시 |
+| `/설정` | 웹 설정 페이지 안내 |
+| `/서버설정` | 서버 자동 역할 설정 관리 (관리자 전용) |
+| `/검색 title [user]` | 클리어 기록에서 곡명 검색 |
+| `/상태` | 봇 및 서버 상태 확인 |
 
 ## 사용 방법
 
-1. `/북마클릿` — 북마클릿 코드 받기
-2. [maimai DX NET](https://maimaidx-eng.com/maimai-mobile/) 접속 (로그인된 상태)
-3. 브라우저 콘솔(F12)에 북마클릿 코드 붙여넣고 실행
-4. `완료!` 알림 확인
-5. `/프로필` 실행 — 프로필 + 기록 확인
+1. `/북마클릿` 실행 후 **설치 가이드 열기** 버튼을 누릅니다.
+2. PC는 버튼을 북마크바로 드래그하고, 모바일은 복사 버튼으로 북마클릿 코드를 복사해 북마크 URL에 붙여넣습니다.
+3. [maimai DX NET](https://maimaidx-eng.com/maimai-mobile/)에 로그인된 상태에서 저장한 북마클릿을 실행합니다.
+4. `완료!` 알림 확인 후 `/프로필`, `/최근 플레이` 버튼, `/레이팅표`, `/검색` 등을 사용합니다.
 
-## GCP 배포
+## 봇 초대
 
-```bash
-# VM에서
-git clone https://github.com/BitByte08/carol.git
-cd carol
-# config.json, .env (CF_TUNNEL_TOKEN) 생성
-docker compose pull
-docker compose up -d
-```
+배포된 `baseUrl` 기준으로 `https://your-domain.example/invite`에 접속하면 Discord 초대 링크로 이동합니다. 기본 초대 링크는 `clientId`에서 생성되며, 자동 역할 기능에 필요한 권한값 `2415938560`을 포함합니다. 권한을 직접 조정하려면 Discord Developer Portal에서 만든 OAuth2 URL을 `discordInviteUrl`에 넣으세요.
 
-CI/CD: `master` 브랜치 push 시 GitHub Actions가 Docker 이미지 빌드 → GHCR 푸시 → VM 자동 배포.
+## 관리자 기능 방향
 
-자세한 내용은 [DEPLOY.md](DEPLOY.md) 참조.
+관리자 화면이 필요해지면 봇 서버에는 API만 두고, 관리자 웹은 별도 프론트엔드로 분리하는 방향이 좋습니다. API-first로 가면 `/api/admin/*` 같은 엔드포인트와 인증 방식을 먼저 고정하고, 별도 API 문서(OpenAPI/Scalar 등)를 함께 관리해야 합니다.
+
+## 개발 문서
+
+- [개발 컨벤션](docs/DEVELOPMENT.md): 버전 정책, 릴리스 체크리스트, 커밋 가이드, 검증 기준
+- [디자인 가이드](docs/DESIGN.md): 웹/이미지 UI 색상, 타이포그래피, 컴포넌트 토큰
 
 ## 라이선스
 

@@ -5,6 +5,7 @@ export const CONFIG = require("../config.json") as {
   encryptionKey?: string;
   webPort?: number;
   baseUrl?: string;
+  discordInviteUrl?: string;
   databaseUrl?: string;
 };
 
